@@ -259,3 +259,10 @@ clean:
 	find . -name '*.o' |xargs rm -f
 	find . -name  '*.core' |xargs rm -f
 	find . -name '*.pyc' |xargs rm -f
+	
+#
+# unit tests
+#
+test: gmapper/seeds.o common/util.o common/bitmap.o common/my-alloc.o common/fasta.o tests/utest.c tests/test.c
+	$(LD) $(CXXFLAGS) -lcunit -o $@ $+ $(LDFLAGS)
+tests: test
