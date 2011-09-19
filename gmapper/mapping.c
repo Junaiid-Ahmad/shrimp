@@ -58,10 +58,16 @@ read_get_mapidxs_per_strand(struct read_entry * re, int st)
       load++;
 
     for (sn = 0; sn < n_seeds; sn++) {
-      if (i < re->min_kmer_pos + seed[sn].span - 1)
-	continue;
-
       r_idx = i - seed[sn].span + 1;
+#ifdef ENABLE_SEED_POSITIONS
+      if (r_idx < re->min_kmer_pos || !(bitmap_long_extract(seed[sn].positions, 1, MAX_SEED_POSITIONS_BITMAP_SIZE, r_idx))) {
+         continue;
+      }
+#else
+      if (r_idx < re->min_kmer_pos) {
+          continue;
+      }
+#endif
       re->mapidx[st][sn*re->max_n_kmers + (r_idx - re->min_kmer_pos)] = KMER_TO_MAPIDX(kmerWindow, sn);
     }
   }
@@ -909,6 +915,11 @@ read_get_anchor_list_per_strand(struct read_entry * re, int st,
   // load inital anchors in min heap
   for (sn = 0; sn < n_seeds; sn++) {
     for (i = 0; re->min_kmer_pos + i + seed[sn].span - 1 < re->read_len; i++) {
+#ifdef ENABLE_SEED_POSITIONS
+      if (!(bitmap_long_extract(seed[sn].positions, 1, MAX_SEED_POSITIONS_BITMAP_SIZE, i))) {
+         continue;
+      }
+#endif
       offset = sn*re->max_n_kmers + i;
 
       if (genomemap_len[sn][re->mapidx[st][offset]] > list_cutoff) {

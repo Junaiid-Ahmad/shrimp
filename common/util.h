@@ -71,6 +71,7 @@ uint64_t	gettimeinusecs(void);
 uint64_t	rdtsc(void);
 double		cpuhz(void);
 u_int		strchrcnt(const char *, const char);
+u_int		strlchrcnt(const char *, const char, const char end_marker);
 bool		is_number(const char *);
 bool		is_whitespace(const char *);
 void		xstat(const char *, struct stat *);

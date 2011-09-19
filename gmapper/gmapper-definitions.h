@@ -53,6 +53,12 @@ typedef struct ptr_and_sz {
 #define MAX_HASH_SEED_SPAN	64
 #define HASH_TABLE_POWER	12	/* 4^HASH_POWER entries in table */
 
+/* Use positioned seeds (apply seeds only on certain positions on the read) */
+#define ENABLE_SEED_POSITIONS
+/* Size of the array of bitmap_type holding the positions where the seed should be applied on the read.
+ * Actual number of positions fitting in this array: MAX_SEED_POSITIONS_BITMAP_SIZE * 64 */
+#define MAX_SEED_POSITIONS_BITMAP_SIZE 16
+
 #define MAX_N_DEFAULT_SEEDS 5
 typedef char const * const default_seed_array_t[MAX_N_DEFAULT_SEEDS];
 
@@ -60,6 +66,9 @@ typedef struct seed_type {
   bitmap_type	mask[1];	/* a bitmask, least significant bit = rightmost match */
   int		span;		/* max 64 (could be uint8_t) */
   int		weight;		/* max 64 */
+#ifdef ENABLE_SEED_POSITIONS
+  bitmap_type	positions[MAX_SEED_POSITIONS_BITMAP_SIZE];      /* a bitmask, up to 1024 positions, least significant bit = first position */
+#endif
 } seed_type;
 
 

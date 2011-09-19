@@ -5,28 +5,61 @@
 #include "seeds.h"
 #include "../common/util.h"
 
+#define SEED__PATTERN_POSITIONS_SEP ':'
+#define SEED__POSITIONS_SEP '|'
+
+bool
+parse_spaced_seed(char const * seed_string, struct seed_type * seed) {
+  int i;
+  const char * positions_string = NULL;
+  char seed_pattern_end_marker = '\0';
+  seed->mask[0] = 0x0;
+
+#ifdef ENABLE_SEED_POSITIONS
+  bitmap_long_reset(seed->positions, MAX_SEED_POSITIONS_BITMAP_SIZE);
+  /* Is the seed positioned?
+  If positions are given, the position list is separated from the seed pattern by ':';
+  in the list, positions are separated by '|'*/
+  positions_string = strchr(seed_string, SEED__PATTERN_POSITIONS_SEP);
+  seed_pattern_end_marker = positions_string ? SEED__PATTERN_POSITIONS_SEP : '\0';
+#endif
+  seed->span = positions_string ? positions_string - seed_string : strlen(seed_string);
+  seed->weight = strlchrcnt(seed_string, '1', seed_pattern_end_marker);
+  if (seed->span < 1
+      || seed->span > MAX_SEED_SPAN
+      || seed->weight < 1
+      || (int)strlchrcnt(seed_string, '0', seed_pattern_end_marker) != seed->span - seed->weight)
+   return false;
+
+  for (i = 0; i < seed->span; i++) {
+    bitmap_prepend(seed->mask, 1, (seed_string[i] == '1' ? 1 : 0));
+  }
+
+#ifdef ENABLE_SEED_POSITIONS
+  if (positions_string) {
+    while (positions_string && strlen(positions_string) > 1 && sscanf (positions_string + 1, "%d", &i) > 0) {
+      bitmap_long_insert_clean(seed->positions, 1, MAX_SEED_POSITIONS_BITMAP_SIZE, i, 1);
+      positions_string = strchr(positions_string + 1, SEED__POSITIONS_SEP);
+    }
+  } else {
+	 bitmap_long_allset(seed->positions, MAX_SEED_POSITIONS_BITMAP_SIZE);
+  }
+#endif
+  return true;
+}
 
 bool
 add_spaced_seed(char const * seed_string)
 {
   int i;
-
   seed = (struct seed_type *)
     //xrealloc(seed, sizeof(struct seed_type) * (n_seeds + 1));
     my_realloc(seed, (n_seeds + 1) * sizeof(seed[0]), n_seeds * sizeof(seed[0]),
 	       &mem_small, "seed");
-  seed[n_seeds].mask[0] = 0x0;
-  seed[n_seeds].span = strlen(seed_string);
-  seed[n_seeds].weight = strchrcnt(seed_string, '1');
 
-  if (seed[n_seeds].span < 1
-      || seed[n_seeds].span > MAX_SEED_SPAN
-      || seed[n_seeds].weight < 1
-      || (int)strchrcnt(seed_string, '0') != seed[n_seeds].span - seed[n_seeds].weight)
+  if (!parse_spaced_seed(seed_string, &seed[n_seeds])) {
     return false;
-
-  for (i = 0; i < seed[n_seeds].span; i++)
-    bitmap_prepend(seed[n_seeds].mask, 1, (seed_string[i] == '1' ? 1 : 0));
+  }
 
   max_seed_span = MAX(max_seed_span, seed[n_seeds].span);
   min_seed_span = MIN(min_seed_span, seed[n_seeds].span);

@@ -110,6 +110,20 @@ strchrcnt(const char *str, const char c)
 	return (i);
 }
 
+u_int
+strlchrcnt(const char *str, const char c, const char end_marker)
+{
+        int i;
+
+        i = 0;
+        while (*str != end_marker) {
+                if (*str++ == c)
+                        i++;
+        }
+
+        return (i);
+}
+
 bool
 is_number(const char *str)
 {

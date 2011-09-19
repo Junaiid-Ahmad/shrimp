@@ -33,6 +33,7 @@ STATIC(int,			default_seeds_mirna_cnt,	DEF_DEF_SEEDS_MIRNA_CNT);
 STATIC(char const *,		default_seeds_mirna[5],		DEF_DEF_SEEDS_MIRNA);
 
 
+bool		parse_spaced_seed(char const *, struct seed_type *);
 bool		add_spaced_seed(char const *);
 void		load_default_mirna_seeds();
 bool		load_default_seeds(int);
