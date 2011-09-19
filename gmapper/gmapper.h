@@ -96,6 +96,7 @@ EXTERN(bool,		Vflag,			true);		/* automatic genome index trimming */
 EXTERN(bool,		Qflag,			true);		/* use fastq reads */
 EXTERN(bool,		Gflag,			true);		/* global alignment flag ! */
 EXTERN(bool,		Bflag,			false);		/* be like bfast - cs only! */
+EXTERN(bool,		SQFflag,		false);		/* discard low quality kmers */
 EXTERN(bool,		extra_sam_fields,	false);
 EXTERN(bool,		single_best_mapping,	false);
 EXTERN(bool,		improper_mappings,	true);
@@ -378,6 +379,51 @@ get_contig_num(uint32_t idx, int * cn) {
   assert(contig_offsets[*cn] <= idx && idx < contig_offsets[*cn] + genome_len[*cn]);
 }
 
+#ifdef ENABLE_LOW_QUALITY_FILTER
+// #define AUTOMATICALLY_DISCARD_LOW_QUAL_POSITIONS
+
+#define INDIVIDUAL_QUALITY_THRESHOLD 3
+/* 3 -> 50% chance to be right*/
+#define AVERAGE_QUALITY_THRESHOLD 6
+/* 6 -> 75% chance to be right*/
+#define TOP_QUALITY_CUTOFF 10
+/* 10 -> 90% chance to be right */
+#ifdef AUTOMATICALLY_DISCARD_LOW_QUAL_POSITIONS
+#define UNTRUSTED_QUALITY (-128)
+#else
+#define UNTRUSTED_QUALITY 0
+#endif
+
+static inline void
+read_quality_filter_preprocess (const char * original_qual, char * processed_qual)
+{
+  int i, size = strlen(original_qual);
+  for (i = 0; i < size; ++i) {
+    processed_qual[i] = original_qual[i] - qual_delta;
+    processed_qual[i] = (processed_qual[i] >= TOP_QUALITY_CUTOFF) ? TOP_QUALITY_CUTOFF : (processed_qual[i] < INDIVIDUAL_QUALITY_THRESHOLD) ? UNTRUSTED_QUALITY : processed_qual[i];
+  }
+}
+
+static inline bool
+is_low_quality_read_subsequence(const char * quality, const int position, const seed_type seed)
+{
+  int i, subsequence_quality = 0;
+  if (!quality) {
+    return false;
+  }
+  for (i = 0; i < seed.span; ++i) {
+    subsequence_quality += bitmap_extract(seed.mask, 1, seed.span - i - 1) * MAX(quality[position + i], UNTRUSTED_QUALITY);
+  }
+if (subsequence_quality <= 0) {
+  fprintf(stderr, "%d (pos %d, span %d) <<< ", subsequence_quality, position, seed.span);
+  for (i = 0; i < seed.span; ++i) {
+    fprintf (stderr, "%d ", quality[position + i]);
+  }
+exit(1);
+}
+  return (subsequence_quality >= AVERAGE_QUALITY_THRESHOLD * seed.weight);
+}
+#endif
 
 #ifdef __cplusplus
 //} /* extern "C" */

@@ -89,6 +89,11 @@ read_free(struct read_entry * re)
     if (re->qual!=re->orig_qual) {
       free(re->orig_qual);
     }
+#ifdef ENABLE_LOW_QUALITY_FILTER
+    if (re->filter_qual) {
+      free(re->filter_qual);
+    }
+#endif
     assert(re->plus_line!=NULL);
     free(re->plus_line);
   }
@@ -2293,6 +2298,11 @@ int main(int argc, char **argv){
 		case 125: // --ignore-qvs
 		  ignore_qvs = true;
 		  break;
+#ifdef ENABLE_LOW_QUALITY_FILTER
+		case 126: //enable-seed-qual-filter
+			SQFflag = true;
+			break;
+#endif
 		default:
 			usage(progname, false);
 		}

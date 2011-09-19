@@ -55,6 +55,8 @@ typedef struct ptr_and_sz {
 
 /* Use positioned seeds (apply seeds only on certain positions on the read) */
 #define ENABLE_SEED_POSITIONS
+/* Filter out read portions with low quality from */
+#define ENABLE_LOW_QUALITY_FILTER
 /* Size of the array of bitmap_type holding the positions where the seed should be applied on the read.
  * Actual number of positions fitting in this array: MAX_SEED_POSITIONS_BITMAP_SIZE * 64 */
 #define MAX_SEED_POSITIONS_BITMAP_SIZE 16
@@ -89,6 +91,9 @@ typedef struct read_entry {
   char *	orig_seq;
   char *        qual;
   char *	orig_qual;
+#ifdef ENABLE_LOW_QUALITY_FILTER
+  char *    filter_qual;
+#endif
   char *        plus_line; //The '+' line in fastq
   uint32_t *    read[2];        /* the read as a bitstring */
   uint32_t *    mapidx[2];      /* per-seed list of mapidxs in read */

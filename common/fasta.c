@@ -504,6 +504,9 @@ fasta_get_next_read_with_range(fasta_t fasta, read_entry * re )
 		//memcpy(re->qual, fasta->parse_buffer, quality_length);
 		memset(re->qual + quality_length, 0, 17);
 		re->orig_qual=re->qual;
+#ifdef ENABLE_LOW_QUALITY_FILTER
+        re->filter_qual = NULL;
+#endif
 	}	
 
 

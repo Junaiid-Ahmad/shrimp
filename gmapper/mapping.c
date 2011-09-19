@@ -43,7 +43,13 @@ read_get_mapidxs_per_strand(struct read_entry * re, int st)
 
   assert(re != NULL);
   assert(re->mapidx[st] == NULL);
-  
+
+#ifdef ENABLE_LOW_QUALITY_FILTER
+  if (re->filter_qual == NULL) {
+        re->filter_qual = (char *)xmalloc(strlen(re->qual) + 17);
+        read_quality_filter_preprocess (re->qual, re->filter_qual);
+  }
+#endif
   //re->mapidx[st] = (uint32_t *)xmalloc(n_seeds * re->max_n_kmers * sizeof(re->mapidx[0][0]));
   re->mapidx[st] = (uint32_t *)
     my_malloc(n_seeds * re->max_n_kmers * sizeof(re->mapidx[0][0]),
@@ -66,6 +72,12 @@ read_get_mapidxs_per_strand(struct read_entry * re, int st)
 #else
       if (r_idx < re->min_kmer_pos) {
           continue;
+      }
+#endif
+#ifdef ENABLE_LOW_QUALITY_FILTER
+      if (Qflag && SQFflag && is_low_quality_read_subsequence(re->filter_qual, r_idx, seed[sn])) {
+          re->mapidx[st][sn*re->max_n_kmers + (r_idx - re->min_kmer_pos)] = 0;
+    	  continue;
       }
 #endif
       re->mapidx[st][sn*re->max_n_kmers + (r_idx - re->min_kmer_pos)] = KMER_TO_MAPIDX(kmerWindow, sn);
@@ -920,6 +932,12 @@ read_get_anchor_list_per_strand(struct read_entry * re, int st,
          continue;
       }
 #endif
+#ifdef ENABLE_LOW_QUALITY_FILTER
+      if (Qflag && SQFflag && is_low_quality_read_subsequence(re->filter_qual, i, seed[sn])) {
+        continue;
+      }
+#endif
+
       offset = sn*re->max_n_kmers + i;
 
       if (genomemap_len[sn][re->mapidx[st][offset]] > list_cutoff) {
