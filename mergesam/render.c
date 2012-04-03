@@ -49,6 +49,9 @@ size_t render_sam_unaligned_string(pretty * pa, char * buffer, size_t buffer_siz
 	if (pa->has_r2) {
 		position+=snprintf(buffer+position,buffer_size-position,"\tR2:Z:%s",pa->r2);
 	}
+	if (pa->aux!=NULL) {
+		position+=snprintf(buffer+position,buffer_size-position,"\t%s",pa->aux);
+	}
 	return position;
 }
 
@@ -121,13 +124,17 @@ size_t render_fastx_string(pretty * pa, char * buffer, size_t buffer_size) {
 		}
 	}
 	size_t position;
-	if (qualities==NULL) {
-		//fasta
-		position=snprintf(buffer,buffer_size,">%s\n%s\n",pa->read_name,read);
+	if (read!=NULL && read[0]!='\0' && (read[0]!='*' || read[1]!='\0')) {
+		if (qualities==NULL) {
+			//fasta
+			position=snprintf(buffer,buffer_size,">%s\n%s\n",pa->read_name,read);
+		} else {
+			//fastq
+			position=snprintf(buffer,buffer_size,"@%s\n%s\n+\n%s",pa->read_name,read,qualities);
+		} 
 	} else {
-		//fastq
-		position=snprintf(buffer,buffer_size,"@%s\n%s\n+\n%s",pa->read_name,read,qualities);
-	} 
+		*buffer='\0';
+	}
 	return position;
 }
 
@@ -218,13 +225,16 @@ size_t render_sam_bound(pretty * pa ) {
 }
 
 size_t render_sam_string(pretty * pa, char * buffer, size_t buffer_size) {
+	if (!pa->mapped) {
+		return render_sam_unaligned_string(pa,buffer,buffer_size);
+	}	
 	pa->flags=pretty_get_flag(pa);
 	size_t position = snprintf(buffer,buffer_size,"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
 		pa->read_name,
 		pa->flags,
 		pa->reference_name,
 		pa->genome_start_unpadded,
-		pa->mapq,
+		pa->mapq >= 4 ? pa->mapq : 0,
 		pa->cigar,
 		(strcmp(pa->reference_name,pa->mate_reference_name)==0 ? "=" : pa->mate_reference_name),
 		pa->mate_genome_start_unpadded,

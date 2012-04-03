@@ -6,7 +6,7 @@
 
 #define DEF_INSERT_SIZE -1
 
-#define GROWTH_FACTOR 1.3
+#define GROWTH_FACTOR 1.7
 #define SIZE_READ_NAME 255
 //#define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #define MAX_INT32	2147483647
@@ -31,6 +31,7 @@ typedef struct runtime_options {
 	size_t alignments_stack_size;
 	int read_rate;
 	int threads;
+	int min_mapq;
 	//gmapper supported options
 	bool fastq;
 	bool fastq_set;

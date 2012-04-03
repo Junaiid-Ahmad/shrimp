@@ -448,7 +448,7 @@ launch_scan_threads(fasta_t fasta, fasta_t left_fasta, fasta_t right_fasta)
 				trailing_Bs+=1;
 			}
 		}
-		if (trim_illumina && trailing_Bs>0) {
+		if (trailing_Bs>0) {
 			re_buffer[i].seq[strlen(re_buffer[i].seq)-trailing_Bs]='\0';
 			re_buffer[i].qual[strlen(re_buffer[i].qual)-trailing_Bs]='\0';
 		}
@@ -474,8 +474,8 @@ launch_scan_threads(fasta_t fasta, fasta_t left_fasta, fasta_t right_fasta)
 		}
 	}
 
-	re_buffer[i].read[0] = fasta_sequence_to_bitfield(fasta, re_buffer[i].seq);
 	re_buffer[i].max_n_kmers = re_buffer[i].read_len - min_seed_span + 1;
+	re_buffer[i].read[0] = fasta_sequence_to_bitfield(fasta, re_buffer[i].seq);
 	if (shrimp_mode == MODE_COLOUR_SPACE) {
 	  re_buffer[i].read_len--;
 	  re_buffer[i].max_n_kmers -= 2; // 1st color always discarded from kmers
@@ -488,14 +488,18 @@ launch_scan_threads(fasta_t fasta, fasta_t left_fasta, fasta_t right_fasta)
 	} else {
 	  re_buffer[i].read[1] = reverse_complement_read_ls(re_buffer[i].read[0], re_buffer[i].read_len, re_buffer[i].is_rna);
 	}
-	re_buffer[i].avg_qv /= re_buffer[i].read_len;
+	if (re_buffer[i].max_n_kmers < 0)
+	  re_buffer[i].max_n_kmers = 0;
+	if (re_buffer[i].read_len > 0)
+	  re_buffer[i].avg_qv /= re_buffer[i].read_len;
 
 	//Check if we can actually use this read
-	if (re_buffer[i].max_n_kmers < 0
-	    || re_buffer[i].read_len > longest_read_len
+	if (//re_buffer[i].max_n_kmers <= 0
+	    //|| 
+	    re_buffer[i].read_len > longest_read_len
 	    || (Qflag && !ignore_qvs && re_buffer[i].avg_qv < min_avg_qv) // ignore reads with low avg qv
 	    ) {
-	  if (re_buffer[i].max_n_kmers < 0) {
+	  if (re_buffer[i].max_n_kmers <= 0) {
 	    fprintf(stderr, "warning: skipping read [%s]; smaller then any seed!\n",
 		    re_buffer[i].name);
 	    re_buffer[i].max_n_kmers=1;
@@ -2796,6 +2800,9 @@ int main(int argc, char **argv){
 
 	load_genome_usecs += (gettimeinusecs() - before);
 
+	// initialize general search tree for contig offsets
+	gen_st_init(&contig_offsets_gen_st, 17, contig_offsets, num_contigs);
+
 	//
 	// Automatic genome index trimming
 	//
@@ -3038,6 +3045,8 @@ int main(int argc, char **argv){
 			&mem_mapping, "region_map");
 	  }
 	}
+
+	gen_st_delete(&contig_offsets_gen_st);
 
 	if (load_mmap != NULL) {
 	  // munmap?

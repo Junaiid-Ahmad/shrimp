@@ -1,3 +1,13 @@
+2.2.2: December 12, 2011
+	- Changed default 'Match Window Overlap Length' to 90%
+	- Increased the default buffer size of mergesam
+	- Fixed a read in error that may occur with mergesam
+
+2.2.1: October 31, 2011
+	- Added binary search to contig lookup, this speeds up SHRiMP when used
+	  with many contigs in a single instance
+	- Fixed a bug with old SHRiMP output format score
+
 2.2.0: Aug, 2011
 	- Added mapping quality values and base quality values (see README.)
 	- Vastly improved mergesam program that replaces  all  previous  merging

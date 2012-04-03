@@ -81,6 +81,48 @@ reverse_cigar(cigar_t * cigar)
 
 
 static char *
+reverse_alignment_edit_string(char * editstr)
+{
+  int n = strlen(editstr);
+  char * res = (char *)malloc((n + 1) * sizeof(char));
+  int i = 0;
+  while (i < n) {
+    if (isdigit(editstr[n - 1 - i])) {
+      int j = i + 1;
+      while (j < n && isdigit(editstr[n - 1 - j])) j++;
+      j--;
+      memcpy(&res[i], &editstr[n - 1 - j], (j - i + 1) * sizeof(char));
+      i = j + 1;
+    } else if (editstr[n - 1 - i] == '-' || editstr[n - 1 - i] == 'x') {
+      res[i] = editstr[n - 1 - i];
+      i++;
+    } else if (editstr[n - 1 - i] == ')') {
+      res[i] = '(';
+      i++;
+    } else if (editstr[n - 1 - i] == '(') {
+      res[i] = ')';
+      i++;
+    } else if (editstr[n - 1 - i] == 'A') {
+      res[i] = 'T';
+      i++;
+    } else if (editstr[n - 1 - i] == 'C') {
+      res[i] = 'G';
+      i++;
+    } else if (editstr[n - 1 - i] == 'G') {
+      res[i] = 'C';
+      i++;
+    } else if (editstr[n - 1 - i] == 'T') {
+      res[i] = 'A';
+      i++;
+    } else
+      assert(0);
+  }
+  res[n] = 0;
+  return res;
+}
+
+
+static char *
 make_cigar_string(cigar_t * cigar)
 {
 	int string_length=cigar->size; //1 char for each op
@@ -230,6 +272,8 @@ hit_output(struct read_entry * re, struct read_hit * rh, struct read_hit * rh_mp
       char * tmp_output;
 
       if (rh != NULL) {
+	int score=rh->sfrp->score;
+	rh->sfrp->score=rh->score_full;
 	tmp_output = output_normal(re->name, contig_names[rh->cn], rh->sfrp,
 				   genome_len[rh->cn], shrimp_mode == MODE_COLOUR_SPACE, re->read[rh->st],
 				   re->read_len, re->initbp[rh->st], rh->gen_st, Rflag);
@@ -244,6 +288,7 @@ hit_output(struct read_entry * re, struct read_hit * rh, struct read_hit * rh_mp
 	  *output_buffer += snprintf(*output_buffer, output_buffer_end - *output_buffer, "%s\n", tmp_output);
 	  free(tmp_output);
 	}
+	rh->sfrp->score=score;
       } else { // this is an unmapped read (part of a pair)
 	*output_buffer += snprintf(*output_buffer, output_buffer_end - *output_buffer, ">%s\n", re->name);
       }
@@ -532,40 +577,47 @@ hit_output(struct read_entry * re, struct read_hit * rh, struct read_hit * rh_mp
 				cigar_binary->ops[i]='H';
 			}
 		}
-		if (Qflag && (Bflag || compute_mapping_qualities)) {
-		  if (compute_mapping_qualities) { // REMOVE the !Bflag part!!!!
-		    strcpy(qual, rh->sfrp->qual);
-		  } else {
-			int read_length=(read_end-read_start+1);
-			for (i=0; i<read_length; i++) {
-				qual[i]=re->qual[i+read_start-1];
-			}
-			qual[i]='\0';
-			for (i=0; i<read_length-1; i++) {
-				//this is different from bfast
-				//qralign is already clipped! i.e. doesn't have clipped stuff and is
-				//read orientation (not always on positive reference strand!)
-				int first_position_mismatch = rh->sfrp->qralign[i] > 96;
-				int second_position_mismatch = rh->sfrp->qralign[i+1] > 96;
-				int base_qual=0;
-				if (first_position_mismatch && second_position_mismatch ) {
-					base_qual+=0;
-				} else if (first_position_mismatch) {
-					base_qual+=qual[i+1]-qual[i];
-				} else if (second_position_mismatch) {
-					base_qual+=qual[i]-qual[i+1]+33;
-				} else {
-					base_qual+=qual[i]+qual[i+1]+10-33;
+		if (Qflag) {
+			if (Bflag) {
+				int read_length=(read_end-read_start+1);
+				for (i=0; i<read_length; i++) {
+					qual[i]=re->qual[i+read_start-1];
 				}
-				base_qual=MIN('`',MAX(base_qual,'"'));
-				qual[i]=base_qual;
-			}
-		  }
-			if (reverse_strand) {
-				for (i = 0; i < rh->sfrp->rmapped/2; i++) {
-					char temp = qual[i];
-					qual[i]=qual[rh->sfrp->rmapped-i-1];
-					qual[rh->sfrp->rmapped-i-1]=temp;
+				qual[i]='\0';
+				for (i=0; i<read_length-1; i++) {
+					//this is different from bfast
+					//qralign is already clipped! i.e. doesn't have clipped stuff and is
+					//read orientation (not always on positive reference strand!)
+					int first_position_mismatch = rh->sfrp->qralign[i] > 96;
+					int second_position_mismatch = rh->sfrp->qralign[i+1] > 96;
+					int base_qual=0;
+					if (first_position_mismatch && second_position_mismatch ) {
+						base_qual+=0;
+					} else if (first_position_mismatch) {
+						base_qual+=qual[i+1]-qual[i];
+					} else if (second_position_mismatch) {
+						base_qual+=qual[i]-qual[i+1]+33;
+					} else {
+						base_qual+=qual[i]+qual[i+1]+10-33;
+					}
+					base_qual=MIN('`',MAX(base_qual,'"'));
+					qual[i]=base_qual;
+				}
+				if (reverse_strand) {
+					for (i = 0; i < rh->sfrp->rmapped/2; i++) {
+						char temp = qual[i];
+						qual[i]=qual[rh->sfrp->rmapped-i-1];
+						qual[rh->sfrp->rmapped-i-1]=temp;
+					}
+				}
+			} else if (compute_mapping_qualities) {
+		    		strcpy(qual, rh->sfrp->qual);
+				if (reverse_strand) {
+					for (i = 0; i < rh->sfrp->rmapped/2; i++) {
+						char temp = qual[i];
+						qual[i]=qual[rh->sfrp->rmapped-i-1];
+						qual[rh->sfrp->rmapped-i-1]=temp;
+					}
 				}
 			}
 		}
@@ -689,8 +741,18 @@ hit_output(struct read_entry * re, struct read_hit * rh, struct read_hit * rh_mp
 			*output_buffer+=snprintf(*output_buffer,output_buffer_end-*output_buffer,"\tRG:Z:%s",sam_read_group_name);
 	}
 	if (extra_sam_fields) {
-	  *output_buffer += snprintf(*output_buffer, output_buffer_end - *output_buffer, "\tZM:i:%d\tZR:i:%d\tZV:i:%d\tZH:i:%d",
-				     rh->matches, rh->score_window_gen, rh->score_vector, rh->sfrp->score);
+	  char * editstr = alignment_edit_string(rh->sfrp->dbalign, rh->sfrp->qralign);
+	  if (reverse_strand) {
+	    char * tmp = reverse_alignment_edit_string(editstr);
+	    free(editstr);
+	    editstr = tmp;
+	  }
+	  *output_buffer += snprintf(*output_buffer, output_buffer_end - *output_buffer,
+				     "\tZM:i:%d\tZR:i:%d\tZV:i:%d\tZH:i:%d\tZE:Z:%s",
+				     rh->matches, rh->score_window_gen,
+				     rh->score_vector, rh->sfrp->score,
+				     editstr);
+	  free(editstr);
 	}
 	if (cigar_binary!=NULL) {
 		free_cigar(cigar_binary);

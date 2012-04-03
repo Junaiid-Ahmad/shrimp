@@ -14,6 +14,7 @@
 #include "../common/debug.h"
 #include "../common/util.h"
 #include "../common/time_counter.h"
+#include "../common/gen-st.h"
 
 #undef EXTERN
 #undef STATIC
@@ -272,6 +273,7 @@ EXTERN(int *,			genome_initbp,			NULL);
 EXTERN(uint32_t	*,		genome_len,			NULL);
 EXTERN(bool,			genome_is_rna,			false);	/* is genome RNA (has uracil)?*/
 EXTERN(long long int,		total_genome_size,		0);
+EXTERN(gen_st,			contig_offsets_gen_st,		{});
 
 EXTERN(ptr_and_sz *,		genomemap_block,		NULL);
 EXTERN(ptr_and_sz,		genome_contigs_block,		{});
@@ -371,10 +373,34 @@ kmer_to_mapidx_orig(uint32_t *kmerWindow, int sn)
 /* get contig number from absolute index */
 static inline void
 get_contig_num(uint32_t idx, int * cn) {
-  *cn = 0;
-  while (*cn < num_contigs - 1
-	 && idx >= contig_offsets[*cn + 1])
-    (*cn)++;
+
+  if (num_contigs < 100)
+    {
+      *cn = 0;
+      while (*cn < num_contigs - 1
+	     && idx >= contig_offsets[*cn + 1])
+	(*cn)++;
+    }
+  else
+    {
+
+  /*
+  int l, r, m;
+
+  l = 0;
+  r = num_contigs;
+  while (l + 1 < r) {
+    m = (r + l)/2;
+    if (idx < contig_offsets[m])
+      r = m;
+    else
+      l = m;
+  }
+  *cn = l;
+  */
+
+      *cn = gen_st_search(&contig_offsets_gen_st, idx);
+    }
 
   assert(contig_offsets[*cn] <= idx && idx < contig_offsets[*cn] + genome_len[*cn]);
 }
